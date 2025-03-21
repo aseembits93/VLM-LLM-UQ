@@ -4,10 +4,7 @@
 ### Instructions
 
 ```
-conda create -n uq python=3.8
-conda activate uq
+conda env create -f environment.yml
 pip install git+https://github.com/haotian-liu/LLaVA.git 
-pip install spaces
-pip install protobuf
 python app.py
 ```
