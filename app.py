@@ -22,9 +22,9 @@ F. None of the above
 ALL_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'F']
 OPTIONS = ['A', 'B', 'C', 'D']#, 'E', 'F']
 
-TITLE = "# [VLM Uncertainty Demo](https://www.google.com/)"
+TITLE = "# [VLM Uncertainty Demo](https://github.com/aseembits93/VLM-LLM-UQ)"
 DESCRIPTION = "Quantify the uncertainty of VQA models via Conformal Prediction"
-alpha=0.2
+alpha=0.1
 css = """
   #output {
     height: 500px; 
