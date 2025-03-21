@@ -139,8 +139,8 @@ with gr.Blocks(css=css) as demo:
                 output_text = gr.Textbox(label="Output Text")
         gr.Examples(
             examples=[
-                ["yogamat.wepb", 'What is this?\nA. Face\nB. Cat\nC. Yoga Mat\nD. Box\nE. I don’t know\nF. None of the above'],
-                ["dog.wepb", 'What is this?\nA. Dog\nB. Cat\nC. Yoga Mat\nD. Box\nE. I don’t know\nF. None of the above'],
+                ["yogamat.webp", 'What is this?\nA. Face\nB. Cat\nC. Yoga Mat\nD. Box\nE. I don’t know\nF. None of the above'],
+                ["dog.webp", 'What is this?\nA. Dog\nB. Cat\nC. Yoga Mat\nD. Box\nE. I don’t know\nF. None of the above'],
                 ["cat.jpg", 'What is this?\nA. Face\nB. Cat\nC. Yoga Mat\nD. Box\nE. I don’t know\nF. None of the above'],
             ],
             inputs=[input_img, text_input],
