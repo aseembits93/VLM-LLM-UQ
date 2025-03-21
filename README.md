@@ -9,5 +9,7 @@ conda activate uq
 pip install git+https://github.com/haotian-liu/LLaVA.git 
 pip install deepspeed==0.9.5
 pip install --upgrade gradio
+pip install spaces
+pip install protobuf
 python app.py
 ```
