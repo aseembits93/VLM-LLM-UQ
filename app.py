@@ -122,6 +122,7 @@ def run_example(prompt, image, qhat, alpha):
 
 def process_image(image, text_input):
     image = Image.fromarray(image,mode='RGB') 
+    print(type(image))
     results = run_example(text_input, image, qhat, alpha)
     return results
 
