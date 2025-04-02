@@ -1,0 +1,36 @@
+{
+  "configuration": {
+    "alpha": 0.1,
+    "qhat": 0.9974988168796128,
+    "retrieval_depth": 5,
+    "retriever": "scikit-learn TF-IDF + cosine NearestNeighbors",
+    "split": "even record id = calibration; odd record id = evaluation"
+  },
+  "contrastive_minus_generic": {
+    "hit_at_5": 0.08450704225352113
+  },
+  "contrastive_query": {
+    "hit_at_5": 0.8943661971830986
+  },
+  "counts": {
+    "calibration": 2230,
+    "corpus_documents": 97,
+    "eligible_non_singletons": 142,
+    "evaluation": 2147,
+    "records": 4377,
+    "skipped": {
+      "fewer_than_two_named_candidates": 3,
+      "missing_hint": 1712,
+      "singleton": 290
+    }
+  },
+  "generic_query": {
+    "hit_at_5": 0.8098591549295775
+  },
+  "initial_sets": {
+    "eligible_true_answer_coverage": 0.9859154929577465,
+    "evaluation_average_size": 3.5868653935724266,
+    "evaluation_true_answer_coverage": 0.9818351187703773
+  },
+  "scope_note": "Retrieval-only MVP: supporting-hint Hit@5 is measured before adding a generator or recalibrating evidence-conditioned prediction sets."
+}

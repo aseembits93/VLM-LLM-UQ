@@ -18,4 +18,34 @@ C. Option C
 D. Option D
 E. I don’t know
 F. None of the above
+```
 
+## Contrastive retrieval MVP
+
+The standalone experiment in `experiments/contrastive_retrieval.py` tests one
+narrow hypothesis: when the conformal set has multiple answers, does appending
+only those surviving answer texts to the retrieval query find the supporting
+passage more often than querying with the question alone?
+
+It uses an even-ID calibration / odd-ID evaluation split, treats the 97 unique
+MMBench hints as the retrieval corpus, and holds scikit-learn's TF-IDF plus
+cosine `NearestNeighbors` retriever and depth fixed so that only the query
+changes.
+
+```bash
+python -m experiments.contrastive_retrieval \
+  --data mmbench.pkl \
+  --output results/contrastive_retrieval_mvp.json \
+  --plot results/contrastive_retrieval_mvp.png
+```
+
+On the 142 eligible held-out non-singletons, the contrastive query improved
+Hit@5 from 81.0% to 89.4%. The committed JSON contains the complete run output.
+
+![Contrastive retrieval experiment results](results/contrastive_retrieval_mvp.png)
+
+This is intentionally a retrieval-only MVP. It measures whether a known
+supporting passage appears in the first five results; it does not yet generate a
+new answer, recompute the set after retrieval, or claim conformal coverage for
+the RAG pipeline. That next step requires an evidence-conditioned scorer and
+separate pipeline calibration.
