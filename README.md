@@ -40,13 +40,12 @@ python -m experiments.contrastive_retrieval \
 ```
 
 On the 142 eligible held-out non-singletons, the contrastive query improved
-hit@1 from 58.5% to 69.0%, hit@3 from 78.9% to 88.7%, and MRR from 0.682 to
-0.781. It improved the paired supporting-passage rank in 29 cases, tied in 99,
-and worsened it in 14. The committed JSON contains the complete run output.
+Hit@5 from 81.0% to 89.4%. The committed JSON contains the complete run output.
 
 ![Contrastive retrieval experiment results](results/contrastive_retrieval_mvp.png)
 
-This is intentionally a retrieval-only MVP. It measures the rank of a known
-supporting passage; it does not yet generate a new answer, recompute the set
-after retrieval, or claim conformal coverage for the RAG pipeline. That next
-step requires an evidence-conditioned scorer and separate pipeline calibration.
+This is intentionally a retrieval-only MVP. It measures whether a known
+supporting passage appears in the first five results; it does not yet generate a
+new answer, recompute the set after retrieval, or claim conformal coverage for
+the RAG pipeline. That next step requires an evidence-conditioned scorer and
+separate pipeline calibration.

@@ -9,7 +9,7 @@ The whole experiment is contained in this file so it is easy to follow:
    a. the original question by itself;
    b. the question plus the answer options that survived in the set.
 5. Send both queries through the exact same TF-IDF retriever.
-6. Compare where the known supporting passage appears in the results.
+6. Check whether the known supporting passage appears in the first five results.
 7. Save the metrics as JSON and optionally draw a Matplotlib figure.
 
 This is intentionally only a retrieval experiment. It does not ask a model to
@@ -20,7 +20,7 @@ Type-hint cheat sheet for newer Python readers:
 * ``Mapping[str, Any]`` means a dictionary-like MMBench record.
 * ``Sequence[float]`` means an ordered collection of numbers.
 * ``List[str]`` means a list of strings.
-* ``Dict[str, float]`` means a dictionary whose values are numbers.
+* ``Dict[str, Any]`` means a dictionary whose values can have different types.
 * ``->`` shows what a function returns; it does not change how the code runs.
 """
 
@@ -42,18 +42,20 @@ from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 # NumPy supplies array operations, softmax math, sorting, and averages.
 import numpy as np
 
-# Matplotlib draws the two result charts.
+# Matplotlib draws the result chart.
 from matplotlib import pyplot as plt
 
 # TfidfVectorizer converts passages and queries into weighted word vectors.
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# NearestNeighbors performs the cosine-similarity search and ranking.
+# NearestNeighbors performs the cosine-similarity search.
 from sklearn.neighbors import NearestNeighbors
 
 
 # The current demo asks the VLM for one of these six option letters.
 OPTION_LABELS: Tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
+# This MVP evaluates only whether evidence appears in the first five results.
+RETRIEVAL_DEPTH = 5
 
 
 def as_text(value: Any) -> str:
@@ -203,136 +205,60 @@ class SklearnTfidfRetriever:
         # Fit the reusable search index on the document vectors.
         self.neighbor_index.fit(self.document_matrix)
 
-    def ranks(
+    def hit_at_five(
         self, queries: Sequence[str], relevant_indices: Sequence[int]
-    ) -> List[int]:
-        """Return one-indexed ranks of each query's known relevant document."""
+    ) -> float:
+        """Return the fraction of queries that retrieve their evidence in five."""
         # Each query must be paired with one known supporting-passage index.
         if len(queries) != len(relevant_indices):
             raise ValueError("queries and relevant_indices must have equal length")
         # Represent each query with the vocabulary learned from the passages.
         query_matrix = self.vectorizer.transform(queries)
-        # Let scikit-learn rank every passage from nearest to farthest. We ask for
-        # every passage because evaluation needs the exact rank of the known hint.
+        # Let scikit-learn retrieve the five nearest passages for every query.
         _, ordered_documents = self.neighbor_index.kneighbors(
             query_matrix,
-            n_neighbors=len(self.documents),
+            n_neighbors=min(RETRIEVAL_DEPTH, len(self.documents)),
         )
-        # This list will hold positions such as 1st, 2nd, or 10th.
-        ranks: List[int] = []
+        # This list records one True/False retrieval outcome per query.
+        hits: List[bool] = []
         # Evaluate one query and its known supporting passage at a time.
         for row_index, relevant_index in enumerate(relevant_indices):
-            # Read the library-produced document order for this query.
-            ordered = ordered_documents[row_index]
-            # Find the zero-based position of the supporting passage, then add
-            # one so a best result is reported as rank 1 rather than rank 0.
-            ranks.append(int(np.flatnonzero(ordered == relevant_index)[0]) + 1)
-        # Return one supporting-passage rank for every query.
-        return ranks
-
-
-def rank_metrics(ranks: Sequence[int], top_k: Sequence[int]) -> Dict[str, float]:
-    """Summarize supporting-passage ranks with familiar retrieval metrics."""
-    # NumPy makes the averages and comparisons below concise.
-    rank_array = np.asarray(ranks, dtype=float)
-    # Metrics are undefined when there are no evaluated questions.
-    if rank_array.size == 0:
-        raise ValueError("at least one rank is required")
-    # MRR rewards putting the supporting passage near the top. Mean and median
-    # rank show the typical absolute position; lower rank is better.
-    metrics = {
-        "mrr": float(np.mean(1.0 / rank_array)),
-        "mean_rank": float(np.mean(rank_array)),
-        "median_rank": float(np.median(rank_array)),
-    }
-    # Hit@k is the fraction of questions whose passage appeared in the first k.
-    for k in top_k:
-        metrics["hit_at_{}".format(k)] = float(np.mean(rank_array <= k))
-    # The same metric function is used for both query types.
-    return metrics
+            # A hit means the supporting-passage index is among these five results.
+            hits.append(relevant_index in ordered_documents[row_index])
+        # Averaging booleans gives the fraction of successful retrievals.
+        return float(np.mean(hits))
 
 
 def plot_results(result: Mapping[str, Any], output_path: Path) -> None:
-    """Plot aggregate retrieval quality and paired per-question outcomes."""
-    # Read the requested retrieval depths, normally 1, 3, and 5.
-    top_k = result["configuration"]["top_k"]
-    # Convert generic-query hit rates from fractions to percentages.
-    generic_hits = [100 * result["generic_query"][f"hit_at_{k}"] for k in top_k]
-    # Convert contrastive-query hit rates from fractions to percentages.
-    contrastive_hits = [100 * result["contrastive_query"][f"hit_at_{k}"] for k in top_k]
-    # Create one x-axis position for each retrieval depth.
-    positions = np.arange(len(top_k))
-    # Each pair of bars must fit around one x-axis position.
-    width = 0.36
-
-    # Put the aggregate comparison and paired comparison side by side.
-    figure, axes = plt.subplots(1, 2, figsize=(10, 4.4))
-    # Draw the gray baseline bars slightly left of each x position.
-    generic_bars = axes[0].bar(
-        positions - width / 2,
-        generic_hits,
-        width,
-        label="Question only",
-        color="#64748b",
-    )
-    # Draw the blue contrastive bars slightly right of each x position.
-    contrastive_bars = axes[0].bar(
-        positions + width / 2,
-        contrastive_hits,
-        width,
-        label="Contrastive",
-        color="#2563eb",
-    )
-    # Print the exact percentage above every gray bar.
-    axes[0].bar_label(generic_bars, fmt="%.1f%%", padding=3, fontsize=9)
-    # Print the exact percentage above every blue bar.
-    axes[0].bar_label(contrastive_bars, fmt="%.1f%%", padding=3, fontsize=9)
-    # Name the three x positions Hit@1, Hit@3, and Hit@5.
-    axes[0].set_xticks(positions, [f"Hit@{k}" for k in top_k])
-    # Percentages always live between zero and one hundred.
-    axes[0].set_ylim(0, 100)
-    # Explain what the left panel's vertical axis represents.
-    axes[0].set_ylabel("Supporting passage retrieved (%)")
-    # Give the left panel a short conclusion-oriented title.
-    axes[0].set_title("Evidence retrieval improves")
-    # Identify the gray and blue conditions.
-    axes[0].legend(loc="lower right", frameon=False)
-    # Faint horizontal lines make values easier to compare.
-    axes[0].grid(axis="y", alpha=0.2)
-
-    # Read the per-question better/tied/worse counts.
-    comparison = result["paired_rank_comparison"]
-    # These labels become the right panel's three x-axis categories.
-    outcome_labels = ["Better", "Tied", "Worse"]
-    # Keep the counts in the same order as the labels.
-    outcome_counts = [
-        comparison["contrastive_better"],
-        comparison["tied"],
-        comparison["contrastive_worse"],
+    """Plot the question-only and contrastive Hit@5 percentages."""
+    # Convert the two Hit@5 fractions into percentages.
+    percentages = [
+        100 * result["generic_query"]["hit_at_5"],
+        100 * result["contrastive_query"]["hit_at_5"],
     ]
-    # Use green for improvement, gray for no change, and red for regression.
-    outcome_bars = axes[1].bar(
-        outcome_labels,
-        outcome_counts,
-        color=["#16a34a", "#94a3b8", "#dc2626"],
-        width=0.62,
+    # Create one compact chart with one bar for each query type.
+    figure, axis = plt.subplots(figsize=(6.4, 4.4))
+    # Gray represents the baseline and blue represents contrastive retrieval.
+    bars = axis.bar(
+        ["Question only", "Contrastive"],
+        percentages,
+        color=["#64748b", "#2563eb"],
+        width=0.58,
     )
-    # Print the number of questions above each right-panel bar.
-    axes[1].bar_label(outcome_bars, padding=3, fontsize=10)
-    # Add headroom so the largest number is not clipped.
-    axes[1].set_ylim(0, max(outcome_counts) * 1.18)
-    # Explain what is being counted.
-    axes[1].set_ylabel("Evaluation questions")
-    # Explain that this panel compares the two ranks question by question.
-    axes[1].set_title("Change in supporting-passage rank")
-    # Add the same subtle horizontal guide lines as the first panel.
-    axes[1].grid(axis="y", alpha=0.2)
+    # Print each exact percentage above its bar.
+    axis.bar_label(bars, fmt="%.1f%%", padding=3, fontsize=11)
+    # Percentages always live between zero and one hundred.
+    axis.set_ylim(0, 100)
+    # Explain the one metric shown in the figure.
+    axis.set_ylabel("Hit@5: supporting passage retrieved (%)")
+    # State the comparison directly in the title.
+    axis.set_title("Contrastive queries improve Hit@5")
+    # Faint horizontal lines make the two values easier to compare.
+    axis.grid(axis="y", alpha=0.2)
 
     # Include the final evaluation sample size in the overall title.
     eligible = result["counts"]["eligible_non_singletons"]
-    figure.suptitle(
-        f"Conformal-set contrastive retrieval MVP (n={eligible})", fontsize=14
-    )
+    figure.suptitle(f"Conformal retrieval MVP (n={eligible})", fontsize=14)
     # State the controlled-experiment assumption at the bottom of the figure.
     figure.text(
         0.5,
@@ -342,7 +268,7 @@ def plot_results(result: Mapping[str, Any], output_path: Path) -> None:
         fontsize=9,
         color="#475569",
     )
-    # Reserve room for the title and footnote while fixing subplot spacing.
+    # Reserve room for the title and footnote while fixing chart spacing.
     figure.tight_layout(rect=(0, 0.05, 1, 0.93))
     # Create the destination directory when it does not already exist.
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -399,7 +325,7 @@ def unique_hints(records: Iterable[Mapping[str, Any]]) -> List[str]:
 
 
 def run_experiment(
-    records: Sequence[Mapping[str, Any]], alpha: float, top_k: Sequence[int]
+    records: Sequence[Mapping[str, Any]], alpha: float
 ) -> Dict[str, Any]:
     """Run the paired query experiment over the MMBench result records."""
     # Step 1: keep calibration labels separate from evaluation metrics.
@@ -430,7 +356,7 @@ def run_experiment(
         # A singleton has no two surviving answers to contrast.
         if len(candidates) == 1:
             skipped["singleton"] += 1
-        # Without a hint, there is no known relevant passage whose rank we can score.
+        # Without a hint, there is no known relevant passage whose hit we can score.
         elif not hint:
             skipped["missing_hint"] += 1
         # At least two answer texts are needed to write "A versus C."
@@ -454,14 +380,10 @@ def run_experiment(
     relevant_indices = [document_indices[hint] for _, _, hint in eligible]
     # Step 5: fit one retriever, ensuring both query types use the same search index.
     retriever = SklearnTfidfRetriever(documents)
-    # Retrieve with the question-only queries and record supporting-passage ranks.
-    baseline_ranks = retriever.ranks(baseline_queries, relevant_indices)
-    # Retrieve again with contrastive queries, changing nothing else.
-    contrastive_ranks = retriever.ranks(contrastive_queries, relevant_indices)
-    # Step 6: summarize the baseline ranks.
-    baseline_metrics = rank_metrics(baseline_ranks, top_k)
-    # Summarize the contrastive ranks with the exact same metrics.
-    contrastive_metrics = rank_metrics(contrastive_ranks, top_k)
+    # Step 6: measure baseline success within the first five passages.
+    baseline_hit_at_5 = retriever.hit_at_five(baseline_queries, relevant_indices)
+    # Measure contrastive success with the exact same five-passage depth.
+    contrastive_hit_at_5 = retriever.hit_at_five(contrastive_queries, relevant_indices)
 
     # Check how often S0 contains the correct answer among eligible questions.
     initial_coverage = np.mean(
@@ -474,15 +396,8 @@ def run_experiment(
             for record, candidates in zip(evaluation, evaluation_sets)
         ]
     )
-    # Arrays make paired less-than/equal/greater-than comparisons straightforward.
-    baseline_array = np.asarray(baseline_ranks)
-    contrastive_array = np.asarray(contrastive_ranks)
-    # A positive hit-rate or MRR delta favors contrastive retrieval. A negative
-    # mean-rank delta also favors it because a smaller rank is better.
-    deltas = {
-        metric: float(contrastive_metrics[metric] - baseline_metrics[metric])
-        for metric in baseline_metrics
-    }
+    # A positive difference means contrastive queries retrieved evidence more often.
+    hit_at_5_delta = contrastive_hit_at_5 - baseline_hit_at_5
 
     # Step 7: assemble all settings, counts, and metrics into serializable values.
     return {
@@ -492,7 +407,7 @@ def run_experiment(
             "qhat": qhat,
             "split": "even record id = calibration; odd record id = evaluation",
             "retriever": "scikit-learn TF-IDF + cosine NearestNeighbors",
-            "top_k": list(top_k),
+            "retrieval_depth": RETRIEVAL_DEPTH,
         },
         # These counts show how the original 4,377 records become 142 trials.
         "counts": {
@@ -511,20 +426,13 @@ def run_experiment(
             "evaluation_true_answer_coverage": float(evaluation_coverage),
             "eligible_true_answer_coverage": float(initial_coverage),
         },
-        # Store absolute retrieval results for each query condition.
-        "generic_query": baseline_metrics,
-        "contrastive_query": contrastive_metrics,
-        # Store direct metric differences to simplify comparison and plotting.
-        "contrastive_minus_generic": deltas,
-        # Compare the two supporting-passage ranks question by question.
-        "paired_rank_comparison": {
-            "contrastive_better": int(np.sum(contrastive_array < baseline_array)),
-            "tied": int(np.sum(contrastive_array == baseline_array)),
-            "contrastive_worse": int(np.sum(contrastive_array > baseline_array)),
-        },
+        # Hit@5 is the single retrieval metric retained for this MVP.
+        "generic_query": {"hit_at_5": baseline_hit_at_5},
+        "contrastive_query": {"hit_at_5": contrastive_hit_at_5},
+        "contrastive_minus_generic": {"hit_at_5": hit_at_5_delta},
         # Prevent this retrieval result from being read as an end-to-end guarantee.
         "scope_note": (
-            "Retrieval-only MVP: supporting-hint rank is measured before adding a "
+            "Retrieval-only MVP: supporting-hint Hit@5 is measured before adding a "
             "generator or recalibrating evidence-conditioned prediction sets."
         ),
     }
@@ -543,23 +451,6 @@ def load_records(path: Path) -> List[Mapping[str, Any]]:
     return records
 
 
-def parse_top_k(value: str) -> List[int]:
-    """Turn a command-line value such as '1,3,5' into sorted integers."""
-    try:
-        # A set removes duplicate depths, and sorted() gives a stable order.
-        top_k = sorted({int(item) for item in value.split(",")})
-    except ValueError as error:
-        # Replace Python's conversion error with a command-line-friendly message.
-        raise argparse.ArgumentTypeError(
-            "top-k must be comma-separated integers"
-        ) from error
-    # Retrieval depth zero or below has no useful meaning.
-    if not top_k or top_k[0] < 1:
-        raise argparse.ArgumentTypeError("top-k values must be positive")
-    # argparse stores this list directly in args.top_k.
-    return top_k
-
-
 def main() -> None:
     """Read CLI arguments, run the experiment, and save requested artifacts."""
     # Use this module's opening explanation as the --help description.
@@ -568,8 +459,6 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=Path("mmbench.pkl"))
     # Alpha=0.1 is the conformal error target used by the existing demo.
     parser.add_argument("--alpha", type=float, default=0.1)
-    # Report whether evidence appears in the first 1, 3, and 5 passages by default.
-    parser.add_argument("--top-k", type=parse_top_k, default=parse_top_k("1,3,5"))
     # --output is optional; when present, metrics are written as JSON here.
     parser.add_argument("--output", type=Path)
     # --plot is optional; when present, the Matplotlib PNG is written here.
@@ -578,7 +467,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Load the input once and pass all experiment settings to the core function.
-    result = run_experiment(load_records(args.data), args.alpha, args.top_k)
+    result = run_experiment(load_records(args.data), args.alpha)
     # Pretty-print and sort keys so repeated runs create stable, readable JSON.
     rendered = json.dumps(result, indent=2, sort_keys=True)
     # Only write a JSON file when the caller supplied --output.
