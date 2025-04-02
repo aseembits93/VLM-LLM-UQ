@@ -2,7 +2,7 @@
   "configuration": {
     "alpha": 0.1,
     "qhat": 0.9974988168796128,
-    "retriever": "word TF-IDF cosine similarity",
+    "retriever": "scikit-learn TF-IDF + cosine NearestNeighbors",
     "split": "even record id = calibration; odd record id = evaluation",
     "top_k": [
       1,
@@ -14,17 +14,17 @@
     "hit_at_1": 0.10563380281690138,
     "hit_at_3": 0.09859154929577474,
     "hit_at_5": 0.08450704225352113,
-    "mean_rank": -3.619718309859154,
+    "mean_rank": -6.225352112676055,
     "median_rank": 0.0,
-    "mrr": 0.09500246386825484
+    "mrr": 0.09939481663582783
   },
   "contrastive_query": {
     "hit_at_1": 0.6901408450704225,
     "hit_at_3": 0.8873239436619719,
     "hit_at_5": 0.8943661971830986,
-    "mean_rank": 5.570422535211268,
+    "mean_rank": 7.894366197183099,
     "median_rank": 1.0,
-    "mrr": 0.7829616239267432
+    "mrr": 0.7812845724911572
   },
   "counts": {
     "calibration": 2230,
@@ -42,9 +42,9 @@
     "hit_at_1": 0.5845070422535211,
     "hit_at_3": 0.7887323943661971,
     "hit_at_5": 0.8098591549295775,
-    "mean_rank": 9.190140845070422,
+    "mean_rank": 14.119718309859154,
     "median_rank": 1.0,
-    "mrr": 0.6879591600584883
+    "mrr": 0.6818897558553294
   },
   "initial_sets": {
     "eligible_true_answer_coverage": 0.9859154929577465,
@@ -52,9 +52,9 @@
     "evaluation_true_answer_coverage": 0.9818351187703773
   },
   "paired_rank_comparison": {
-    "contrastive_better": 26,
-    "contrastive_worse": 19,
-    "tied": 97
+    "contrastive_better": 29,
+    "contrastive_worse": 14,
+    "tied": 99
   },
   "scope_note": "Retrieval-only MVP: supporting-hint rank is measured before adding a generator or recalibrating evidence-conditioned prediction sets."
 }

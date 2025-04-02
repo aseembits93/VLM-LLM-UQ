@@ -45,8 +45,11 @@ import numpy as np
 # Matplotlib draws the two result charts.
 from matplotlib import pyplot as plt
 
-# TfidfVectorizer is the small lexical search engine used in both conditions.
+# TfidfVectorizer converts passages and queries into weighted word vectors.
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+# NearestNeighbors performs the cosine-similarity search and ranking.
+from sklearn.neighbors import NearestNeighbors
 
 
 # The current demo asks the VLM for one of these six option letters.
@@ -174,8 +177,8 @@ def contrastive_query(
     )
 
 
-class TfidfRetriever:
-    """A minimal lexical retriever that keeps the query comparison controlled."""
+class SklearnTfidfRetriever:
+    """A scikit-learn lexical retriever used identically for both query types."""
 
     def __init__(self, documents: Sequence[str]):
         # A search engine cannot be fitted without documents.
@@ -194,6 +197,11 @@ class TfidfRetriever:
         )
         # Learn the vocabulary and represent every passage as a sparse vector.
         self.document_matrix = self.vectorizer.fit_transform(self.documents)
+        # Ask scikit-learn to compare vectors using cosine distance. "Brute"
+        # checks every document, which is simple and fast for this 97-passage corpus.
+        self.neighbor_index = NearestNeighbors(metric="cosine", algorithm="brute")
+        # Fit the reusable search index on the document vectors.
+        self.neighbor_index.fit(self.document_matrix)
 
     def ranks(
         self, queries: Sequence[str], relevant_indices: Sequence[int]
@@ -202,18 +210,20 @@ class TfidfRetriever:
         # Each query must be paired with one known supporting-passage index.
         if len(queries) != len(relevant_indices):
             raise ValueError("queries and relevant_indices must have equal length")
-        # Turn queries into TF-IDF vectors, then compute all query-document dot
-        # products. TF-IDF normalizes vectors, so these are cosine similarities.
-        similarities = self.vectorizer.transform(queries) @ self.document_matrix.T
+        # Represent each query with the vocabulary learned from the passages.
+        query_matrix = self.vectorizer.transform(queries)
+        # Let scikit-learn rank every passage from nearest to farthest. We ask for
+        # every passage because evaluation needs the exact rank of the known hint.
+        _, ordered_documents = self.neighbor_index.kneighbors(
+            query_matrix,
+            n_neighbors=len(self.documents),
+        )
         # This list will hold positions such as 1st, 2nd, or 10th.
         ranks: List[int] = []
         # Evaluate one query and its known supporting passage at a time.
         for row_index, relevant_index in enumerate(relevant_indices):
-            # Convert this sparse similarity row into a simple score array.
-            scores = similarities.getrow(row_index).toarray()[0]
-            # Negating scores lets ascending argsort produce highest-first order.
-            # Stable sorting makes tied scores deterministic across runs.
-            ordered = np.argsort(-scores, kind="stable")
+            # Read the library-produced document order for this query.
+            ordered = ordered_documents[row_index]
             # Find the zero-based position of the supporting passage, then add
             # one so a best result is reported as rank 1 rather than rank 0.
             ranks.append(int(np.flatnonzero(ordered == relevant_index)[0]) + 1)
@@ -327,7 +337,7 @@ def plot_results(result: Mapping[str, Any], output_path: Path) -> None:
     figure.text(
         0.5,
         0.01,
-        "Same corpus, TF-IDF retriever, and retrieval depth; only the query changes.",
+        "Same corpus, scikit-learn retriever, and depth; only the query changes.",
         ha="center",
         fontsize=9,
         color="#475569",
@@ -443,7 +453,7 @@ def run_experiment(
     # Translate every known hint into the retriever's numeric document index.
     relevant_indices = [document_indices[hint] for _, _, hint in eligible]
     # Step 5: fit one retriever, ensuring both query types use the same search index.
-    retriever = TfidfRetriever(documents)
+    retriever = SklearnTfidfRetriever(documents)
     # Retrieve with the question-only queries and record supporting-passage ranks.
     baseline_ranks = retriever.ranks(baseline_queries, relevant_indices)
     # Retrieve again with contrastive queries, changing nothing else.
@@ -481,7 +491,7 @@ def run_experiment(
             "alpha": alpha,
             "qhat": qhat,
             "split": "even record id = calibration; odd record id = evaluation",
-            "retriever": "word TF-IDF cosine similarity",
+            "retriever": "scikit-learn TF-IDF + cosine NearestNeighbors",
             "top_k": list(top_k),
         },
         # These counts show how the original 4,377 records become 142 trials.

@@ -28,8 +28,9 @@ only those surviving answer texts to the retrieval query find the supporting
 passage more often than querying with the question alone?
 
 It uses an even-ID calibration / odd-ID evaluation split, treats the 97 unique
-MMBench hints as the retrieval corpus, and holds the TF-IDF retriever and depth
-fixed so that only the query changes.
+MMBench hints as the retrieval corpus, and holds scikit-learn's TF-IDF plus
+cosine `NearestNeighbors` retriever and depth fixed so that only the query
+changes.
 
 ```bash
 python -m experiments.contrastive_retrieval \
@@ -39,9 +40,9 @@ python -m experiments.contrastive_retrieval \
 ```
 
 On the 142 eligible held-out non-singletons, the contrastive query improved
-hit@1 from 58.5% to 69.0%, hit@3 from 78.9% to 88.7%, and MRR from 0.688 to
-0.783. It improved the paired supporting-passage rank in 26 cases, tied in 97,
-and worsened it in 19. The committed JSON contains the complete run output.
+hit@1 from 58.5% to 69.0%, hit@3 from 78.9% to 88.7%, and MRR from 0.682 to
+0.781. It improved the paired supporting-passage rank in 29 cases, tied in 99,
+and worsened it in 14. The committed JSON contains the complete run output.
 
 ![Contrastive retrieval experiment results](results/contrastive_retrieval_mvp.png)
 
