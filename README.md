@@ -34,13 +34,16 @@ fixed so that only the query changes.
 ```bash
 python -m experiments.contrastive_retrieval \
   --data mmbench.pkl \
-  --output results/contrastive_retrieval_mvp.json
+  --output results/contrastive_retrieval_mvp.json \
+  --plot results/contrastive_retrieval_mvp.png
 ```
 
 On the 142 eligible held-out non-singletons, the contrastive query improved
 hit@1 from 58.5% to 69.0%, hit@3 from 78.9% to 88.7%, and MRR from 0.688 to
 0.783. It improved the paired supporting-passage rank in 26 cases, tied in 97,
 and worsened it in 19. The committed JSON contains the complete run output.
+
+![Contrastive retrieval experiment results](results/contrastive_retrieval_mvp.png)
 
 This is intentionally a retrieval-only MVP. It measures the rank of a known
 supporting passage; it does not yet generate a new answer, recompute the set

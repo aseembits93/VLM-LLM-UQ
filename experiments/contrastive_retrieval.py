@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
@@ -143,6 +144,75 @@ def rank_metrics(ranks: Sequence[int], top_k: Sequence[int]) -> Dict[str, float]
     for k in top_k:
         metrics["hit_at_{}".format(k)] = float(np.mean(rank_array <= k))
     return metrics
+
+
+def plot_results(result: Mapping[str, Any], output_path: Path) -> None:
+    """Plot aggregate retrieval quality and paired per-question outcomes."""
+    top_k = result["configuration"]["top_k"]
+    generic_hits = [100 * result["generic_query"][f"hit_at_{k}"] for k in top_k]
+    contrastive_hits = [100 * result["contrastive_query"][f"hit_at_{k}"] for k in top_k]
+    positions = np.arange(len(top_k))
+    width = 0.36
+
+    figure, axes = plt.subplots(1, 2, figsize=(10, 4.4))
+    generic_bars = axes[0].bar(
+        positions - width / 2,
+        generic_hits,
+        width,
+        label="Question only",
+        color="#64748b",
+    )
+    contrastive_bars = axes[0].bar(
+        positions + width / 2,
+        contrastive_hits,
+        width,
+        label="Contrastive",
+        color="#2563eb",
+    )
+    axes[0].bar_label(generic_bars, fmt="%.1f%%", padding=3, fontsize=9)
+    axes[0].bar_label(contrastive_bars, fmt="%.1f%%", padding=3, fontsize=9)
+    axes[0].set_xticks(positions, [f"Hit@{k}" for k in top_k])
+    axes[0].set_ylim(0, 100)
+    axes[0].set_ylabel("Supporting passage retrieved (%)")
+    axes[0].set_title("Evidence retrieval improves")
+    axes[0].legend(loc="lower right", frameon=False)
+    axes[0].grid(axis="y", alpha=0.2)
+
+    comparison = result["paired_rank_comparison"]
+    outcome_labels = ["Better", "Tied", "Worse"]
+    outcome_counts = [
+        comparison["contrastive_better"],
+        comparison["tied"],
+        comparison["contrastive_worse"],
+    ]
+    outcome_bars = axes[1].bar(
+        outcome_labels,
+        outcome_counts,
+        color=["#16a34a", "#94a3b8", "#dc2626"],
+        width=0.62,
+    )
+    axes[1].bar_label(outcome_bars, padding=3, fontsize=10)
+    axes[1].set_ylim(0, max(outcome_counts) * 1.18)
+    axes[1].set_ylabel("Evaluation questions")
+    axes[1].set_title("Change in supporting-passage rank")
+    axes[1].grid(axis="y", alpha=0.2)
+
+    eligible = result["counts"]["eligible_non_singletons"]
+    figure.suptitle(
+        f"Conformal-set contrastive retrieval MVP (n={eligible})", fontsize=14
+    )
+    figure.text(
+        0.5,
+        0.01,
+        "Same corpus, TF-IDF retriever, and retrieval depth; only the query changes.",
+        ha="center",
+        fontsize=9,
+        color="#475569",
+    )
+    figure.tight_layout(rect=(0, 0.05, 1, 0.93))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=160, bbox_inches="tight")
+    plt.close(figure)
 
 
 def record_key(record: Mapping[str, Any], fallback: int) -> int:
@@ -297,6 +367,7 @@ def main() -> None:
     parser.add_argument("--alpha", type=float, default=0.1)
     parser.add_argument("--top-k", type=parse_top_k, default=parse_top_k("1,3,5"))
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--plot", type=Path)
     args = parser.parse_args()
 
     result = run_experiment(load_records(args.data), args.alpha, args.top_k)
@@ -304,6 +375,8 @@ def main() -> None:
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered + "\n", encoding="utf-8")
+    if args.plot:
+        plot_results(result, args.plot)
     print(rendered)
 
 

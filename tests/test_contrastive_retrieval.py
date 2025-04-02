@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
@@ -6,6 +8,7 @@ from experiments.contrastive_retrieval import (
     TfidfRetriever,
     calibrate_qhat,
     contrastive_query,
+    plot_results,
     prediction_set,
     run_experiment,
 )
@@ -97,6 +100,11 @@ class ContrastiveRetrievalTest(unittest.TestCase):
         self.assertEqual(result["counts"]["eligible_non_singletons"], 2)
         self.assertIn("hit_at_1", result["generic_query"])
         self.assertIn("hit_at_2", result["contrastive_query"])
+
+        with TemporaryDirectory() as directory:
+            plot_path = Path(directory) / "result.png"
+            plot_results(result, plot_path)
+            self.assertGreater(plot_path.stat().st_size, 0)
 
 
 if __name__ == "__main__":
