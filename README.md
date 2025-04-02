@@ -49,9 +49,3 @@ This is intentionally a retrieval-only MVP. It measures the rank of a known
 supporting passage; it does not yet generate a new answer, recompute the set
 after retrieval, or claim conformal coverage for the RAG pipeline. That next
 step requires an evidence-conditioned scorer and separate pipeline calibration.
-
-Run the focused tests with:
-
-```bash
-python -m unittest discover -v
-```
