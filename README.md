@@ -1,6 +1,8 @@
 # VLM-LLM-UQ
 ## Uncertainty Quantification of Vision Language Models and Large Language Models
 
+Demo -> [https://huggingface.co/spaces/aseembits93/VLM-LLM-UQ](Demo)
+
 ### Instructions
 
 ```
@@ -26,8 +28,6 @@ When the prediction has multiple answers, does appending
 only those surviving answer texts to the retrieval query find the supporting
 passage more often than querying with the question alone?
 
-It treats the 97 unique MMBench supporting passages as the retrieval corpus.
-
 ```bash
 python -m experiments.contrastive_retrieval \
   --data mmbench.pkl \
@@ -36,10 +36,3 @@ python -m experiments.contrastive_retrieval \
 ```
 
 APS candidate-based retrieval actually reduces accuracy.
-
-### Results with/without APS candidate-based retrieval
-
-| Metric | Value |
-| --- | ---: |
-| Final accuracy, draft-based retrieval | 74.56% |
-| Final accuracy, APS candidate retrieval | 73.68% |
