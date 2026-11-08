@@ -20,7 +20,7 @@ E. I don’t know
 F. None of the above
 ```
 
-## Contrastive retrieval MVP
+## Contrastive retrieval idea
 
 When the prediction has multiple answers, does appending
 only those surviving answer texts to the retrieval query find the supporting
