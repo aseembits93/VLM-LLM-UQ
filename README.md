@@ -35,14 +35,11 @@ python -m experiments.contrastive_retrieval \
   --plot results/contrastive_retrieval_mvp.png
 ```
 
-On the 142 held-out data points, the contrastive query improved
-Hit@5 from 81.0% to 89.4%.
-
-![Contrastive retrieval experiment results](results/contrastive_retrieval_mvp.png)
+APS candidate-based retrieval actually reduces accuracy.
 
 ### Results with/without APS candidate-based retrieval
 
-| Metric | Primary: 114 group representatives | Secondary: 460 records including rotations |
-| --- | ---: | ---: |
-| Final accuracy, draft-based retrieval | 85/114 = 74.56% | 322/460 = 70.00% |
-| Final accuracy, APS candidate retrieval | 84/114 = 73.68% | 316/460 = 68.70% |
+| Metric | Value |
+| --- | ---: |
+| Final accuracy, draft-based retrieval | 85/114 = 74.56% |
+| Final accuracy, APS candidate retrieval | 84/114 = 73.68% |
