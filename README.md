@@ -39,21 +39,18 @@ python -m experiments.contrastive_retrieval \
   --plot results/contrastive_retrieval_mvp.png
 ```
 
-On the 142 eligible held-out non-singletons, the contrastive query improved
-Hit@5 from 81.0% to 89.4%. The committed JSON contains the complete run output.
+On the 142 held-out data points, the contrastive query improved
+Hit@5 from 81.0% to 89.4%.
 
 ![Contrastive retrieval experiment results](results/contrastive_retrieval_mvp.png)
 
 This is intentionally a retrieval-only MVP. It measures whether a known
 supporting passage appears in the first five results; it does not yet generate a
-new answer, recompute the set after retrieval, or claim conformal coverage for
-the RAG pipeline. That next step requires an evidence-conditioned scorer and
-separate pipeline calibration.
+new answer, recompute the set after retrieval.
 
 ## Generate-then-retrieve VQA
 
-`rag`: original image + question → visual description and draft option → CLIP retrieval → final LLaVA answer. It uses `openai/clip-vit-base-patch32`, with greedy decoding and no training or hosted
-inference. CLIP image and text vectors are normalized separately and fused with equal weight, then normalized again. 
+`rag`: original image + question → visual description and draft option → CLIP retrieval → final LLaVA answer. It uses `openai/clip-vit-base-patch32`. CLIP image and text vectors are normalized separately and fused with equal weight, then normalized again. 
 
 Prepare the images explicitly, then build the reference index:
 
@@ -65,7 +62,6 @@ python -m rag build-index --data mmbench.pkl
 Retrieval uses cosine similarity and returns three examples.
 
 The index contains `vectors.npy` and `metadata.json`; descriptions and individual embeddings are checkpointed under `cache/` so interrupted builds can reuse them.
-Configuration, model revisions, preprocessing, tokenizer vocabulary, runtime versions, dataset and manifest fingerprints, and vector checksums are checked on reuse.
 
 Answer a new multiple-choice question:
 
@@ -91,5 +87,3 @@ python -m rag answer \
 | Changed top-three retrieval rankings | 43 | 192 |
 | Invalid drafts / final predictions / sets | 0 / 0 / 0 | 0 / 0 / 0 |
 | Processing failures / context reductions | 0 / 0 | 0 / 0 |
-
-Candidate-based retrieval did not improve accuracy.
