@@ -41,5 +41,5 @@ APS candidate-based retrieval actually reduces accuracy.
 
 | Metric | Value |
 | --- | ---: |
-| Final accuracy, draft-based retrieval | 85/114 = 74.56% |
-| Final accuracy, APS candidate retrieval | 84/114 = 73.68% |
+| Final accuracy, draft-based retrieval | 74.56% |
+| Final accuracy, APS candidate retrieval | 73.68% |
